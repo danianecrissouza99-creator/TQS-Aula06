@@ -1,148 +1,120 @@
-# TQS - Aula 5: Testes Unitários com PHP
+# TQS - Aula 6: Testes Unitários com PHP (II)
 
-Exercícios práticos da Aula 5 de Testes e Qualidade de Software (ISTEC, CTeSP em Desenvolvimento de Software, 2.º ano).
+Exercícios práticos da Aula 6 de Testes e Qualidade de Software (ISTEC, CTeSP em Desenvolvimento de Software, 2.º ano).
 
 Daniane Christyni Souza da Silva, n.º 2025055
 Docente: André Silva
 
-O objetivo da aula era escrever a primeira suite de testes com o PHPUnit, com pelo menos 12 testes a passar. No fim fiquei com 26.
+Esta aula continua o projeto da Aula 5. O objetivo era medir a cobertura de código da suite, testar uma classe que depende de uma API externa usando test doubles (stub e mock), e chegar a pelo menos 80% de cobertura na camada de domínio.
 
-O enunciado original, tal como o professor o deu, está no ficheiro `ENUNCIADO.md`.
+No fim fiquei com 33 testes a passar e 97,22% de cobertura, com a camada de domínio a 100%.
+
+O enunciado das tarefas está no ficheiro `ENUNCIADO.md` e a justificação da cobertura está no `COBERTURA.md`.
 
 ## Estrutura
 
 | Ficheiro | O que tem |
 | --- | --- |
-| `src/Carrinho.php` | A classe do carrinho de compras (com o desconto de estudante que acrescentei) |
-| `src/ValidadorPasse.php` | O validador de palavra-passe, criado em TDD no P5.3 |
-| `tests/CarrinhoTest.php` | Os testes do P5.1 e do P5.2 |
-| `tests/ValidadorPasseTest.php` | Os testes do P5.3 |
-| `ENUNCIADO.md` | O enunciado original da aula |
+| `src/Carrinho.php` | A classe do carrinho (da Aula 5) |
+| `src/ValidadorPasse.php` | O validador de palavra-passe (da Aula 5) |
+| `src/Loja.php` | Converte preços de euros para dólares com a taxa de uma API (novo, P6.2) |
+| `src/ClienteHttp.php` | Interface do cliente HTTP, a "ligação à rede" (novo) |
+| `src/Resposta.php` | A resposta da API (novo) |
+| `src/CambioIndisponivelException.php` | Erro lançado quando a API falha ou não devolve a taxa (novo) |
+| `tests/CarrinhoTest.php` | Testes do Carrinho (da Aula 5) |
+| `tests/ValidadorPasseTest.php` | Testes do validador (da Aula 5) |
+| `tests/LojaTest.php` | Testes da Loja com stubs e mock (novo, P6.2) |
+| `cobertura/` | Relatório de cobertura em HTML (abrir `cobertura/index.html`) |
+| `COBERTURA.md` | Resultado da cobertura e justificação da linha não coberta |
 
 ## Preparar e correr
 
-O PHPUnit não está no repositório (o `.gitignore` deixa-o de fora), por isso é preciso descarregá-lo para a pasta do projeto:
+O PHPUnit não está no repositório, por isso é preciso descarregá-lo para a pasta do projeto:
 
 ```
 php -r "copy('https://phar.phpunit.de/phpunit-11.phar', 'phpunit');"
-php phpunit --version
 ```
 
-Se o segundo comando mostrar a versão, está pronto. Para correr os testes:
+Para correr os testes:
 
 ```
-php phpunit tests               # todos os testes
-php phpunit --testdox tests     # cada teste aparece como uma frase
+php phpunit --testdox tests
 ```
 
-Cada ponto (.) é um teste que passou e cada F é um que falhou. Por baixo de um F, o PHPUnit diz o que esperava e o que recebeu.
+Para medir a cobertura é preciso um motor de cobertura no PHP. Eu usei o Xdebug 3.5, com `xdebug.mode=coverage` no `php.ini`. Depois:
 
-Este projeto não tem `phpunit.xml`, por isso é preciso pôr sempre `tests` no fim do comando.
+```
+php phpunit --coverage-filter src --coverage-text tests            # na consola
+php phpunit --coverage-filter src --coverage-html cobertura tests  # relatório HTML
+```
 
-## P5.1 - Primeiros testes
+Como o projeto ainda não tem `phpunit.xml`, é preciso indicar a pasta a medir com `--coverage-filter src`.
 
-**O que era pedido:** escrever pelo menos 8 testes à classe `Carrinho`: o total com um, dois e três artigos, o número de artigos, o carrinho vazio e não vazio, e o desconto de estudante para idades dentro e fora do intervalo, incluindo os valores fronteira 18 e 25. Cada teste devia seguir o padrão Arrange, Act, Assert (preparar, executar, verificar), ter um nome que explique o que verifica e usar `assertSame`.
+## P6.1 - Medir a cobertura
 
-**O que fiz:** usei o `setUp()` para cada teste começar com um carrinho novo, assim nenhum teste depende do que outro deixou. Antes de escrever cada valor esperado fiz a conta à mão.
+**O que era pedido:** medir a cobertura da suite da Aula 5, gerar o relatório HTML e identificar pelo menos uma linha não coberta, explicando porquê.
 
-| Teste | O que verifica | Conta |
+**O que fiz:** com os testes da Aula 5, o `Carrinho` e o `ValidadorPasse` já estavam a 100%, por isso não havia linhas por cobrir. Para ter um caso real, criei primeiro a classe `Loja` do P6.2 e medi a cobertura antes de escrever os testes dela:
+
+| Ficheiro | Cobertura | Porquê |
 | --- | --- | --- |
-| `testTotalVazioEhZero` | Carrinho vazio tem total 0 (ponto de partida do slide) | 0 |
-| `testTotal_ComUmArtigo_...` | Total com um artigo | 10 x 2 = 20 |
-| `testTotal_ComDoisArtigos_...` | Total com dois artigos | 20 + 5 = 25 |
-| `testTotal_ComTresArtigos_...` | Total com três artigos | 20 + 5 + 12 = 37 |
-| `testNumeroDeArtigos_ComDoisArtigos_...` | Dois artigos adicionados | 2 |
-| `testNumeroDeArtigos_ComQuantidadeCinco_...` | A quantidade não conta como artigos | 1 |
-| `testVazio_CarrinhoNovo_...` | Carrinho novo está vazio | true |
-| `testVazio_ComUmArtigo_...` | Com um artigo já não está vazio | false |
-| `testAdicionar_QuantidadeVinte_...` | Quantidade 20, o máximo, é aceite | 3 x 20 = 60 |
+| `Carrinho.php` | 100% | Coberto pelos testes da Aula 5 |
+| `ValidadorPasse.php` | 100% | Coberto pelos testes da Aula 5 |
+| `Loja.php` | 0% | Ainda nenhum teste a usava |
+| `Resposta.php` | 0% | Só é usada pela Loja |
+| **Total** | **53,85%** | 21 de 39 linhas |
 
-Nos testes que escrevi de raiz, os nomes seguem o formato sugerido nos slides, `testOQueSeTesta_Condicao_ResultadoEsperado`. O exemplo do slide ficou com o nome original.
+## P6.2 - Testar uma API com mock
 
-**Desconto de estudante:** a classe `Carrinho` não tinha este método, por isso acrescentei `descontoEstudante()`. Devolve 10% entre os 18 e os 25 anos (inclusive) e 0% fora disso. Testei-o com um Data Provider, para cobrir os dois limites e os valores logo antes e logo depois:
+**O que era pedido:** testar um método que usa uma API REST externa sem fazer pedidos de rede, substituindo a chamada por um test double. Eram pedidos três testes: resposta válida, erro HTTP e resposta com dados em falta.
 
-| Caso | Idade | Desconto esperado |
+**O que fiz:** o enunciado só mostrava o teste, por isso criei as classes `Loja`, `ClienteHttp` e `Resposta` para encaixar no exemplo do slide. O cliente HTTP entra na `Loja` pelo construtor, e é isso que permite trocá-lo por um falso nos testes.
+
+Quando a API falha, ou a resposta não traz uma taxa válida, a `Loja` trata o problema e lança uma `CambioIndisponivelException` com uma mensagem clara.
+
+| Teste | Double usado | O que verifica |
 | --- | --- | --- |
-| menor de idade | 17 | 0% |
-| limite inferior | 18 | 10% |
-| no intervalo | 21 | 10% |
-| limite superior | 25 | 10% |
-| acima | 26 | 0% |
+| Resposta válida | Stub | 100 € com taxa 1,10 dá 110 $ |
+| Erro HTTP | Stub que lança exceção | A Loja trata o erro e lança `CambioIndisponivelException` |
+| Resposta inválida (Data Provider, 4 casos) | Stub | Campo `valor` em falta, resposta vazia, valor não numérico e JSON inválido |
+| Pede a taxa uma vez | Mock | A Loja chama o `get()` uma só vez e ao URL certo |
 
-## P5.2 - Testar exceções
+Nenhum destes testes faz pedidos de rede: o `ClienteHttp` é sempre falso.
 
-**O que era pedido:** confirmar que o método `adicionar` recusa entradas inválidas com uma exceção: quantidade zero, quantidade acima de 20 e preço negativo. Em pelo menos um dos testes, devia verificar-se também a mensagem com `expectExceptionMessage`.
+O exemplo do slide usa `assertSame(110.0, ...)`, mas em PHP 100 x 1,10 dá `110.00000000000001`, por isso esse teste falharia. Usei `assertEqualsWithDelta`, que aceita uma diferença mínima, como se recomenda para valores decimais calculados. No teste do mock usei a taxa 1,25 (50 x 1,25 = 62,5, um valor exato), por isso aí o `assertSame` funciona.
 
-**O que fiz:** escrevi 5 testes. Dois são os exemplos dos slides, escritos tal como o professor os mostrou.
+## P6.3 - Aumentar a cobertura
 
-| Teste | Entrada | Verifica a mensagem? |
+**O que era pedido:** chegar a pelo menos 80% de cobertura na camada de domínio e justificar por escrito as linhas deliberadamente não cobertas.
+
+**O que fiz:** depois de escrever o `LojaTest.php`, voltei a medir:
+
+| Ficheiro | Antes | Depois |
 | --- | --- | --- |
-| `testQtZeroLevantaErro` (slide) | quantidade 0 | Não |
-| `testMensagemDoErro` (slide) | quantidade 0 | Sim, só a palavra "quantidade" |
-| `testAdicionar_QuantidadeAcimaDeVinte_...` | quantidade 21 | Sim, a frase completa |
-| `testAdicionar_PrecoNegativo_...` | preço -5 | Sim, a frase completa |
-| `testAdicionar_PrecoZero_...` | preço 0 | Não |
+| `Carrinho.php` | 100% | 100% |
+| `ValidadorPasse.php` | 100% | 100% |
+| `Loja.php` | 0% | 100% |
+| `Resposta.php` | 0% | 100% |
+| `ClienteHttp.php` | 0% | 0% (1 linha, justificada) |
+| **Total** | **53,85%** | **97,22%** |
 
-O teste do preço 0 não era pedido, mas acrescentei-o porque o preço tem de ser maior que zero e o 0 é exatamente o limite.
-
-O `testMensagemDoErro` mostra que o `expectExceptionMessage` aceita só uma parte do texto, o que torna o teste menos frágil se a frase mudar um pouco.
-
-O mais importante aqui foi a ordem: primeiro o `expectException` e só depois a chamada que deve dar erro. Se for ao contrário, a exceção acontece antes de o PHPUnit saber que a deve esperar, e o teste dá erro.
-
-## P5.3 - Ciclo TDD: validador de palavra-passe
-
-**O que era pedido:** criar a classe `ValidadorPasse` com um método `valida(string $passe): bool`, usando TDD, ou seja, escrevendo o teste antes do código. Uma palavra-passe é válida quando tem ao mesmo tempo:
-
-1. no mínimo 8 caracteres;
-2. pelo menos uma letra maiúscula;
-3. pelo menos um dígito.
-
-A ideia era fazer um requisito de cada vez: escrever o teste, vê-lo falhar (vermelho), escrever o mínimo de código para passar (verde) e só depois avançar. No fim, melhorar o código com os testes a garantir que nada se parte (refactor).
-
-**Como correu:**
-
-| Passo | O que fiz | Resultado |
-| --- | --- | --- |
-| Vermelho | Teste para `'Ab1'` ser inválida, sem a classe existir | Erro: a classe não existia |
-| Verde | Classe só com `return strlen($passe) >= 8;` | Passou |
-| Vermelho | Teste para `'abcdefg1'` (sem maiúscula) ser inválida | Falhou: o código só via o tamanho |
-| Verde | Acrescentei a verificação da maiúscula | Passou |
-| Vermelho | Teste para `'Abcdefgh'` (sem dígito) ser inválida | Falhou |
-| Verde | Acrescentei a verificação do dígito | Passou |
-| Refactor | Passei o 8 para a constante `TAMANHO_MINIMO` e comentei cada regra | Continuou tudo a passar |
-
-O facto de os testes continuarem verdes depois do refactor mostra que o comportamento não mudou.
-
-No fim, os testes do validador ficaram assim:
-
-| Teste | Palavra-passe | Esperado |
-| --- | --- | --- |
-| `testValida_PasseCurta_...` | `Ab1` | inválida |
-| `testValida_SemMaiuscula_...` | `abcdefg1` | inválida |
-| `testValida_SemDigito_...` | `Abcdefgh` | inválida |
-| `testValida_CumpreTodasAsRegras_...` | `Segura2026` | válida |
-| Data Provider: 7 caracteres | `Abcdef1` | inválida |
-| Data Provider: 8 caracteres | `Abcdefg1` | válida |
-| Data Provider: 9 caracteres | `Abcdefgh1` | válida |
-
-O Data Provider serve para testar os valores-limite do tamanho (7, 8 e 9) com um só teste.
+A única linha por cobrir é o `require_once` do `ClienteHttp.php`. Corre quando o PHPUnit carrega os testes, antes de começar a medir, e não é lógica do programa. A explicação completa está no `COBERTURA.md`.
 
 ## Resultado
 
-Com `php phpunit --testdox tests` passam os 26 testes (cada linha de um Data Provider conta como um teste):
+Com `php phpunit --testdox tests` passam os 33 testes:
 
 | Ficheiro | Testes |
 | --- | --- |
-| `CarrinhoTest.php` | 19 (14 do P5.1 e 5 do P5.2) |
+| `CarrinhoTest.php` | 19 |
 | `ValidadorPasseTest.php` | 7 |
-| **Total** | **26** |
-
-```
-OK (26 tests, 29 assertions)
-```
+| `LojaTest.php` | 7 |
+| **Total** | **33** |
 
 ## O que aprendi
 
-Ver o teste falhar antes de escrever o código foi o que mais me ajudou a perceber o TDD. Garante que o teste está mesmo a verificar alguma coisa e que não passa por acaso.
+Ver a cobertura descer para 53% quando acrescentei uma classe sem testes mostrou bem para que serve o relatório: aponta logo o código que ninguém está a verificar.
 
-Também percebi que os erros costumam estar nos limites, como o 0, o 20, o 18 ou o 8, e por isso tentei ter sempre um teste mesmo em cima de cada um.
+Também percebi que cobertura alta não chega. O que dá valor a um teste é o assert. Por isso tive cuidado em verificar sempre o resultado, os erros e os valores-limite, e não apenas em fazer as linhas correr.
+
+Com os stubs e o mock consegui testar a lógica da `Loja` sem depender da internet. Os testes ficaram rápidos e dão sempre o mesmo resultado.

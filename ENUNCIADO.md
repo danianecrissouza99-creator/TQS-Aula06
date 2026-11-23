@@ -1,108 +1,59 @@
-# Exercícios da Aula 5 — Testes Unitários com PHP
+# Aula 6 - Testes Unitários com PHP (II)
 
-Projeto base para os exercícios práticos. Todos abrem este mesmo projeto e trabalham sobre ele.
+Enunciado da componente prática, tal como está no PDF da aula (Professor André Silva).
 
-O objetivo da aula é escrever a vossa primeira suite de testes com o PHPUnit. No fim, deves ter pelo menos **12 testes a passar**.
+A aula continua a suite de testes escrita na Aula 5 e responde a duas perguntas:
 
-## O que está dentro
+- **Quanto do código está testado?** A cobertura de código mede que parte do código é executada pelos testes.
+- **Como testar código que depende de coisas que não controlamos?** Os test doubles e o mocking permitem testar código que depende de APIs, bases de dados ou ficheiros.
 
-```
-src/     o código a testar (a classe Carrinho)
-tests/   onde vais escrever os teus testes
-```
+## P6.1 - Medir a cobertura (35 min, individual)
 
-## Preparar o ambiente (uma vez)
-
-1. Abre a pasta do projeto no VS Code (Ficheiro, Abrir Pasta).
-2. Abre o terminal integrado (menu Terminal, Novo Terminal).
-3. Dentro da pasta do projeto, instala o PHPUnit (é um ficheiro só):
+Medir a cobertura da suite escrita na Aula 5. Gerar um relatório HTML e identificar as linhas não cobertas.
 
 ```
-php -r "copy('https://phar.phpunit.de/phpunit-11.phar', 'phpunit');"
-php phpunit --version
+# ativar o motor de cobertura (uma vez)
+pecl install pcov             # ou ativar pcov no php.ini
+
+# medir e mostrar na consola
+php phpunit --coverage-text
+
+# gerar relatorio HTML navegavel
+php phpunit --coverage-html cobertura
 ```
 
-Se o segundo comando mostrar a versão, o PHPUnit está pronto.
+**Tarefa:** medir a cobertura da suite atual. Abrir o relatório HTML (`cobertura/index.html`) no navegador. Identificar pelo menos uma linha não coberta e explicar porquê.
 
-## Como correr os testes
+## P6.2 - Testar uma API com mock (50 min, individual)
 
-```
-php phpunit tests              correr todos os testes
-php phpunit --testdox          mostrar cada teste como uma frase
-```
+Testar um método que consome uma API REST externa, substituindo a chamada de rede por um mock e validando também o tratamento de erros.
 
-No resultado, cada **ponto (.)** é um teste que passou e cada **F** é um teste que falhou. Por baixo de um F, o PHPUnit explica o que esperava e o que obteve.
-
----
-
-## P5.1 — Primeiros testes (45 min)
-
-Abre `tests/CarrinhoTest.php`. Já lá está o primeiro teste feito, como exemplo. Escreve os restantes.
-
-**O que fazer:** escrever pelo menos **8 testes** sobre a classe `Carrinho`:
-
-- o total com um, dois e três artigos;
-- o número de artigos no carrinho;
-- o carrinho novo está vazio, e com um artigo já não está;
-- o total de um carrinho vazio é zero (já feito).
-
-**Regras:**
-- cada teste segue o padrão **Arrange, Act, Assert** (preparar, executar, verificar);
-- o nome do teste descreve o que verifica (evita `test1` ou `testCarrinho`);
-- usa `assertSame(esperado, obtido)`.
-
-> Confirma sempre a conta à mão antes de escrever o resultado esperado.
-
----
-
-## P5.2 — Testar exceções (35 min)
-
-Ainda no `tests/CarrinhoTest.php`. O método `adicionar` deve recusar entradas inválidas lançando uma exceção.
-
-**O que fazer:** escrever testes que confirmem que:
-
-- quantidade **zero** lança `InvalidArgumentException`;
-- quantidade **acima de 20** lança exceção;
-- preço **negativo** lança exceção;
-- usa `expectExceptionMessage` para verificar a mensagem em pelo menos um deles.
-
-**Como se escreve:**
+Ponto de partida:
 
 ```php
-public function testQtZeroLevantaErro(): void
+public function testCambioComRespostaValida(): void
 {
-    $this->expectException(InvalidArgumentException::class);
-    $this->carrinho->adicionar('A', 10, 0);
+    // cria o cliente HTTP falso (sem rede)
+    $http = $this->createStub(ClienteHttp::class);
+    // programa a resposta fixa que ele devolve
+    $http->method('get')->willReturn(
+        new Resposta('{"valor": 1.10}'));
+
+    $loja = new Loja($http);     // injeta o falso
+    // verifica so a logica: 100 x 1.10 = 110.0
+    $this->assertSame(110.0, $loja->precoComCambio(100));
 }
 ```
 
-> Atenção à ordem: primeiro `expectException`, só **depois** a chamada que deve dar erro.
+**Tarefa:** escrever três testes: resposta válida da API (com stub); erro HTTP (o duplo lança uma exceção e o método deve tratá-la); e resposta com dados em falta. Confirmar que nenhum teste faz pedidos de rede reais.
 
----
+## P6.3 - Aumentar a cobertura (35 min, individual)
 
-## P5.3 — Ciclo TDD: validador de palavra-passe (40 min)
+Com base no relatório de P6.1, escrever os testes em falta para elevar a cobertura da camada de domínio a um mínimo de 80%.
 
-Aqui trabalhas ao contrário: escreves o **teste primeiro**, vê-lo falhar (vermelho), e só depois escreves o código para ele passar (verde).
+1. **Identificar lacunas:** ler o relatório HTML e listar as linhas ainda por cobrir.
+2. **Escrever os testes:** para cada lacuna, escrever o teste que a cobre. Muitas serão casos de erro e valores fronteira.
+3. **Medir de novo:** voltar a correr a cobertura e confirmar que atingiu 80% ou mais.
+4. **Justificar o resto:** documentar as linhas que ficam deliberadamente por cobrir e explicar porquê.
 
-Abre `tests/ValidadorPasseTest.php`, que tem as instruções passo a passo.
-
-**O que fazer:** criar a classe `ValidadorPasse` (em `src/ValidadorPasse.php`) com um método `valida(string $passe): bool`. Uma palavra-passe é válida quando, ao mesmo tempo:
-
-1. tem no mínimo **8 caracteres**;
-2. tem pelo menos uma **letra maiúscula**;
-3. tem pelo menos um **dígito**.
-
-**Faz um requisito de cada vez:**
-1. escreve um teste para o requisito 1 e vê-lo falhar;
-2. cria o código mínimo para passar;
-3. só então avança para o requisito seguinte.
-
----
-
-## Entrega
-
-- Confirma que **todos os testes passam** com `php phpunit --testdox`.
-- Guarda o projeto no Git e envia para o GitHub.
-- Entrega o link do repositório ao docente.
-
-> O ficheiro `phpunit` não deve ir para o GitHub (o `.gitignore` já trata disso).
+**Entregável:** relatório de cobertura com 80% ou mais na camada de domínio, e um ficheiro breve a justificar cada linha deliberadamente não coberta. Submetido no repositório da UC.
